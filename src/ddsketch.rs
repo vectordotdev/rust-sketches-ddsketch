@@ -42,7 +42,6 @@ pub struct DDSketch {
     sum: f64,
 }
 
-// XXX: functions should return Option<> in the case of empty
 impl DDSketch {
     /// Construct a `DDSketch`. Requires a `Config` specifying the parameters of the sketch
     pub fn new(config: Config) -> Self {
@@ -55,11 +54,11 @@ impl DDSketch {
         }
     }
 
-    /// Add the sample to the sketch
+    /// Add the sample to the sketch.
     pub fn add(&mut self, v: f64) {
         let key = self.config.key(v);
 
-        self.store.add(key);
+        self.store.add(key, 1);
 
         if v < self.min {
             self.min = v;
@@ -70,24 +69,52 @@ impl DDSketch {
         self.sum += v;
     }
 
-    /// Return the quantile value for quantiles between 0.0 and 1.0. Result is an error, represented
-    /// as DDSketchError::Quantile if the requested quantile is outside of that range.
+    /// Add the sample to the sketch multiple times.
+    pub fn add_n(&mut self, v: f64, n: u64) {
+        let key = self.config.key(v);
+
+        self.store.add(key, n);
+
+        if v < self.min {
+            self.min = v;
+        }
+        if self.max < v {
+            self.max = v;
+        }
+        self.sum += v * n as f64;
+    }
+
+    /// Add directly to a given bin, via key, multiple times.
     ///
-    /// If the sketch is empty the result is None, else Some(v) for the quantile value.
+    /// This function is only useful for specific usages where the caller knows the key for the bin
+    /// they want to update.  Most callers should prefer to use `add` or `add_n`.
+    pub fn add_key_n(&mut self, k: i32, n: u64) {
+        let lower_bound = self.config.lower_bound(k);
+
+        self.store.add(k, n);
+
+        if lower_bound < self.min {
+            self.min = lower_bound
+        }
+        if self.max < lower_bound {
+            self.max = lower_bound;
+        }
+        self.sum += lower_bound * n as f64;
+    }
+
+    /// Gets the value for the given quantile.
+    ///
+    /// If the sketch is empty, `None` is returned. If `q` is less than 0.0 or greater than 1.0, the
+    /// value will be the minimum or maximum value seen so far, respectively.
     pub fn quantile(&self, q: f64) -> Option<f64> {
         if self.empty() {
             return None;
         }
-
         if q <= 0.0 {
             return Some(self.min);
         }
         if q >= 1.0 {
             return Some(self.max);
-        }
-
-        if self.empty() {
-            return None;
         }
 
         let rank = (q * ((self.count() - 1) as f64) + 1.0) as u64;

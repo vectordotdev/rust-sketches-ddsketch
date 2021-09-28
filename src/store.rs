@@ -33,11 +33,12 @@ impl Store {
         self.bins.len() as i32
     }
 
-    pub fn add(&mut self, key: i32) {
+    pub fn add(&mut self, key: i32, n: u64) {
         if self.count == 0 {
             self.max_key = key;
             self.min_key = key - (self.length() as i32) + 1;
         }
+
         if key < self.min_key {
             self.grow_left(key)
         } else if key > self.max_key {
@@ -46,8 +47,8 @@ impl Store {
 
         let idx = max(key - self.min_key, 0) as usize;
 
-        self.bins[idx] += 1;
-        self.count += 1;
+        self.bins[idx] = self.bins[idx].saturating_add(n);
+        self.count = self.count.saturating_add(n);
     }
 
     pub fn key_at_rank(&self, rank: u64) -> i32 {
@@ -218,7 +219,7 @@ mod tests {
         let mut s = Store::new(2048);
 
         for i in 0..2048 {
-            s.add(i);
+            s.add(i, 1);
         }
     }
 
@@ -227,7 +228,7 @@ mod tests {
         let mut s = Store::new(2048);
 
         for i in 2048..0 {
-            s.add(i);
+            s.add(i, 1);
         }
     }
 }
