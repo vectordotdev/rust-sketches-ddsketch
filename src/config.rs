@@ -69,7 +69,7 @@ impl Config {
     }
 
     pub fn min_key(&self) -> i32 {
-        self.key(self.min_value)
+        self.key(self.min_value + f64::EPSILON)
     }
 
     #[inline]
