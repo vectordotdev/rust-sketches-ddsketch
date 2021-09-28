@@ -175,8 +175,13 @@ impl DDSketch {
 
     /// Returns the length of the underlying `Store`. This is mainly only useful for understanding
     /// how much the sketch has grown given the inserted values.
-    pub fn length(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.store.length() as usize
+    }
+
+    /// Returns whether or not this sketch is empty
+    pub fn is_empty(&self) -> bool {
+        self.count() == 0
     }
 
     /// Merge the contents of another sketch into this one. The sketch that is merged into this one
