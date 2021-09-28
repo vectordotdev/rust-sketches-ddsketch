@@ -2,16 +2,21 @@ const DEFAULT_MAX_BINS: u32 = 2048;
 const DEFAULT_ALPHA: f64 = 0.01;
 const DEFAULT_MIN_VALUE: f64 = 1.0e-9;
 
+const DDAGENT_DEFAULT_MAX_BINS: u32 = 4096;
+const DDAGENT_DEFAULT_ALPHA: f64 = 1.0 / 128.0;
+const DDAGENT_DEFAULT_MIN_VALUE: f64 = 1.0e-9;
+
 /// The configuration struct for constructing a `DDSketch`
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Config {
-    pub max_num_bins: u32,
-    pub gamma: f64,
+    pub(crate) max_num_bins: u32,
+    pub(crate) gamma: f64,
     gamma_ln: f64,
-    min_value: f64,
-    pub offset: i32,
+    pub(crate) min_value: f64,
+    pub(crate) offset: i32,
 }
 
+#[inline]
 fn log_gamma(value: f64, gamma_ln: f64) -> f64 {
     value.ln() / gamma_ln
 }
@@ -25,7 +30,7 @@ impl Config {
         let gamma_ln = (2.0 * alpha) / (1.0 - alpha);
         let gamma_ln = gamma_ln.ln_1p();
 
-        Config {
+        Self {
             max_num_bins,
             gamma: 1.0 + (2.0 * alpha) / (1.0 - alpha),
             gamma_ln,
@@ -39,21 +44,54 @@ impl Config {
         Self::new(DEFAULT_ALPHA, DEFAULT_MAX_BINS, DEFAULT_MIN_VALUE)
     }
 
-    pub fn key(self: &Self, v: f64) -> i32 {
+    /// Return a `Config` using built-in default settings that the open-source Datadog Agent uses.
+    /// These are subtly different from the parameters in the open-source implementations of the
+    /// white paper.
+    ///
+    /// Use this to more closely model what Datadog themselves uses.
+    pub fn agent_defaults() -> Self {
+        Self::new(
+            DDAGENT_DEFAULT_ALPHA,
+            DDAGENT_DEFAULT_MAX_BINS,
+            DDAGENT_DEFAULT_MIN_VALUE,
+        )
+    }
+
+    #[inline]
+    pub fn key(&self, v: f64) -> i32 {
         if v < -self.min_value {
-            return -(self.log_gamma(-v).ceil() as i32) - self.offset;
+            -(self.log_gamma(-v).ceil() as i32) - self.offset
         } else if v > self.min_value {
-            return (self.log_gamma(v).ceil() as i32) + self.offset;
+            (self.log_gamma(v).ceil() as i32) + self.offset
         } else {
-            return 0;
+            0
         }
     }
 
-    pub fn log_gamma(self: &Self, value: f64) -> f64 {
+    #[inline]
+    pub fn lower_bound(&self, key: i32) -> f64 {
+        if key < 0 {
+            return -self.lower_bound(-key);
+        }
+
+        if key == i32::max_value() {
+            return f64::INFINITY;
+        }
+
+        if key == 0 {
+            return 0.0;
+        }
+
+        self.pow_gamma(key - self.offset)
+    }
+
+    #[inline]
+    pub fn log_gamma(&self, value: f64) -> f64 {
         log_gamma(value, self.gamma_ln)
     }
 
-    pub fn pow_gamma(self: &Self, k: i32) -> f64 {
+    #[inline]
+    pub fn pow_gamma(&self, k: i32) -> f64 {
         ((k as f64) * self.gamma_ln).exp()
     }
 }

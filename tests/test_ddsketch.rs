@@ -99,7 +99,7 @@ fn compare_sketches(d: &mut Dataset, g: &DDSketch) {
             max_expected = upper * (1.0 - TEST_ALPHA);
         }
 
-        let quantile = g.quantile(*q).unwrap().unwrap();
+        let quantile = g.quantile(*q).unwrap();
 
         assert!(
             min_expected <= quantile,
@@ -117,7 +117,7 @@ fn compare_sketches(d: &mut Dataset, g: &DDSketch) {
         );
 
         // verify that calls do not modify result (not mut so not possible?)
-        let quantile2 = g.quantile(*q).unwrap().unwrap();
+        let quantile2 = g.quantile(*q).unwrap();
         assert_eq!(quantile, quantile2);
     }
 
@@ -268,7 +268,7 @@ fn test_performance_insert() {
     }
 
     // This simply ensures the operations don't get optimzed out as ignored
-    let quantile = g.quantile(0.50).unwrap().unwrap();
+    let quantile = g.quantile(0.50).unwrap();
 
     let elapsed = start_time.elapsed().as_micros() as f64;
     let elapsed = elapsed / 1_000_000.0;

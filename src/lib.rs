@@ -19,7 +19,7 @@ d.add(1.0);
 d.add(1.0);
 d.add(1.0);
 
-let q = d.quantile(0.50).unwrap();
+let q = d.quantile(0.50);
 
 assert_eq!(q, Some(1.0));
 ```

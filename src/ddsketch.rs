@@ -47,7 +47,7 @@ impl DDSketch {
     /// Construct a `DDSketch`. Requires a `Config` specifying the parameters of the sketch
     pub fn new(config: Config) -> Self {
         DDSketch {
-            config: config,
+            config,
             store: Store::new(config.max_num_bins as i32),
             min: INFINITY,
             max: -INFINITY,
@@ -74,46 +74,44 @@ impl DDSketch {
     /// as DDSketchError::Quantile if the requested quantile is outside of that range.
     ///
     /// If the sketch is empty the result is None, else Some(v) for the quantile value.
-    pub fn quantile(&self, q: f64) -> Result<Option<f64>> {
-        if q < 0.0 || q > 1.0 {
-            return Err(DDSketchError::Quantile);
+    pub fn quantile(&self, q: f64) -> Option<f64> {
+        if self.empty() {
+            return None;
+        }
+
+        if q <= 0.0 {
+            return Some(self.min);
+        }
+        if q >= 1.0 {
+            return Some(self.max);
         }
 
         if self.empty() {
-            return Ok(None);
-        }
-
-        if q == 0.0 {
-            return Ok(Some(self.min));
-        } else if q == 1.0 {
-            return Ok(Some(self.max));
+            return None;
         }
 
         let rank = (q * ((self.count() - 1) as f64) + 1.0) as u64;
         let mut key = self.store.key_at_rank(rank);
 
-        let quantile;
-        if key < 0 {
+        let quantile = if key < 0 {
             key += self.config.offset;
-            quantile = -2.0 * self.config.pow_gamma(-key) / (1.0 + self.config.gamma);
+            -2.0 * self.config.pow_gamma(-key) / (1.0 + self.config.gamma)
         } else if key > 0 {
             key -= self.config.offset;
-            quantile = 2.0 * self.config.pow_gamma(key) / (1.0 + self.config.gamma);
+            2.0 * self.config.pow_gamma(key) / (1.0 + self.config.gamma)
         } else {
-            quantile = 0.0;
-        }
+            0.0
+        };
 
         // Bound by the extremes
-        let ret;
-        if quantile < self.min {
-            ret = self.min;
+        let bounded = if quantile < self.min {
+            self.min
         } else if quantile > self.max {
-            ret = self.max;
+            self.max
         } else {
-            ret = quantile;
-        }
-
-        Ok(Some(ret))
+            quantile
+        };
+        Some(bounded)
     }
 
     /// Returns the minimum value seen, or None if sketch is empty
@@ -203,10 +201,9 @@ mod tests {
             dd.add(i as f64);
         }
 
-        assert_eq!(dd.quantile(0.95).unwrap().unwrap().ceil(), 95.0);
-
-        assert!(dd.quantile(-1.01).is_err());
-        assert!(dd.quantile(1.01).is_err());
+        assert_eq!(dd.quantile(0.95).map(|n| n.ceil()), Some(95.0));
+        assert_eq!(dd.quantile(-1.01), dd.min());
+        assert_eq!(dd.quantile(1.01), dd.max());
     }
 
     #[test]
@@ -214,13 +211,13 @@ mod tests {
         let c = Config::defaults();
         let dd = DDSketch::new(c);
 
-        assert_eq!(dd.quantile(0.98).unwrap(), None);
+        assert_eq!(dd.quantile(0.98), None);
         assert_eq!(dd.max(), None);
         assert_eq!(dd.min(), None);
         assert_eq!(dd.sum(), None);
         assert_eq!(dd.count(), 0);
 
-        assert!(dd.quantile(1.01).is_err());
+        assert_eq!(dd.quantile(1.01), dd.max());
     }
 
     #[test]
@@ -271,8 +268,8 @@ mod tests {
         assert_eq!(dd.count(), 31);
         assert_eq!(dd.sum(), Some(23.343630625000003));
 
-        assert!(dd.quantile(0.25).unwrap().is_some());
-        assert!(dd.quantile(0.5).unwrap().is_some());
-        assert!(dd.quantile(0.75).unwrap().is_some());
+        assert!(dd.quantile(0.25).is_some());
+        assert!(dd.quantile(0.5).is_some());
+        assert!(dd.quantile(0.75).is_some());
     }
 }

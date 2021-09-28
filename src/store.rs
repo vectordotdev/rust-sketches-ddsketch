@@ -20,7 +20,7 @@ pub struct Store {
 
 impl Store {
     pub fn new(max_num_bins: i32) -> Self {
-        Store {
+        Self {
             bins: new_vec(INITIAL_NUM_BINS as usize),
             count: 0,
             min_key: 0,
@@ -155,20 +155,18 @@ impl Store {
                 n += o.bins[(i - o.min_key) as usize];
             }
             self.bins[0] += n;
+        } else if o.min_key < self.min_key {
+            let mut tmp_bins = o.bins.clone();
+            for i in self.min_key..(self.max_key + 1) {
+                tmp_bins[(i - o.min_key) as usize] += self.bins[(i - self.min_key) as usize];
+            }
+            self.bins = tmp_bins;
+            self.max_key = o.max_key;
+            self.min_key = o.min_key
         } else {
-            if o.min_key < self.min_key {
-                let mut tmp_bins = o.bins.clone();
-                for i in self.min_key..(self.max_key + 1) {
-                    tmp_bins[(i - o.min_key) as usize] += self.bins[(i - self.min_key) as usize];
-                }
-                self.bins = tmp_bins;
-                self.max_key = o.max_key;
-                self.min_key = o.min_key
-            } else {
-                self.grow_right(o.max_key);
-                for i in o.min_key..(o.max_key + 1) {
-                    self.bins[(i - self.min_key) as usize] += o.bins[(i - o.min_key) as usize];
-                }
+            self.grow_right(o.max_key);
+            for i in o.min_key..(o.max_key + 1) {
+                self.bins[(i - self.min_key) as usize] += o.bins[(i - o.min_key) as usize];
             }
         }
         self.count += o.count;
