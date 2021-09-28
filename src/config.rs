@@ -68,6 +68,10 @@ impl Config {
         }
     }
 
+    pub fn min_key(&self) -> i32 {
+        self.key(self.min_value)
+    }
+
     #[inline]
     pub fn lower_bound(&self, key: i32) -> f64 {
         if key < 0 {
