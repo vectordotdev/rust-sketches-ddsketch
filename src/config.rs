@@ -48,7 +48,7 @@ impl Config {
     /// These are subtly different from the parameters in the open-source implementations of the
     /// white paper.
     ///
-    /// Use this to more closely model what Datadog themselves uses.
+    /// Use this to more closely model what Datadog uses themselves.
     pub fn agent_defaults() -> Self {
         Self::new(
             DDAGENT_DEFAULT_ALPHA,
